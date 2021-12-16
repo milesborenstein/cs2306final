@@ -1,0 +1,155 @@
+"""
+Name:           Miles Borenstein
+CS230:          Section 6
+Data:           NCAA Football Stadiums
+URL:            streamlit run "/Users/milesborenstein/Desktop/School/FALL 2021/CS 230/Code/Final_Project.py" [ARGUMENTS]
+                http://localhost:8501/
+
+Description:    In this project, I created a website that highlights NCAA football stadiums. To start, there is a quiz, with three
+                difficulty levels for questions. The user can guess, than expand the box to check their answer. If the user got it right,
+                they will see a green message with balloons. If they got it wrong, they will get a red message. Next, on the sidebar the
+                user can choose a conference, where there will be details about the schools in the conference in the sidebar, and on the
+                main page there will be a map with all the schools in the conference. Below that is a graph with the decades in which
+                stadiums where built. That is followed by a table with the average capacity by conference. Finally, there is a pie chart
+                that shows the breakdown of divisions that teams are in.
+
+Image Link:     https://www.google.com/url?sa=i&url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FNCAA_Division_I_Football_Bowl_Subdivision&psig=AOvVaw2N3WLzCnQLh5URDGwni13m&ust=1639706073984000&source=images&cd=vfe&ved=0CAsQjRxqFwoTCJDSvqab5_QCFQAAAAAdAAAAABAD
+"""
+
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
+import random
+
+import os
+import webbrowser
+import folium
+import csv
+import pprint as pp
+import numpy as np
+
+df_stadiums = pd.read_csv("/Users/milesborenstein/Desktop/School/FALL 2021/CS 230/Code/stadiums.csv")
+
+st.image("/Users/milesborenstein/Desktop/School/FALL 2021/CS 230/Code/ncaa.png", width=300)
+st.title("STADIUM CENTRAL")
+st.header("Explore the World of NCAA Football Stadiums!")
+
+def quiz():
+    x = random.randint(0, len(df_stadiums))
+    answers = ["Choose Here", "Yes", "No"]
+    if level == "Easy":
+        st.write(f"What conference does {df_stadiums.at[x, 'team']} play in?")
+        with st.expander("Click here to find out the answer:"):
+            st.write(f"{df_stadiums.at[x, 'conference']}")
+            ans = st.selectbox("Did you get it right?", answers)
+            if ans == "Yes":
+                st.balloons()
+                st.success("Good Job!")
+            elif ans == "No":
+                st.error("Try again next time!")
+            else:
+                st.write(" ")
+
+    elif level == "Medium":
+        st.write(f"What team plays at {df_stadiums.at[x, 'stadium']}? ")
+        with st.expander("Click here to find out the answer:"):
+            st.write(f"{df_stadiums.at[x, 'team']}")
+            ans = st.selectbox("Did you get it right?", answers)
+            if ans == "Yes":
+                st.balloons()
+                st.success("Good Job!")
+            elif ans == "No":
+                st.error("Try again next time!")
+            else:
+                st.write(" ")
+
+    elif level == "Hard":
+        st.write(f"What is the capacity of {df_stadiums.at[x, 'stadium']} (plus or minus two thousand)?")
+        with st.expander("Click here to find out the answer:"):
+            st.write(f"{df_stadiums.at[x, 'capacity']}")
+            ans = st.selectbox("Did you get it right?", answers)
+            if ans == "Yes":
+                st.balloons()
+                st.success("Good Job!")
+            elif ans == "No":
+                st.error("Try again next time!")
+            else:
+                st.write(" ")
+    pass
+
+st.subheader(" - Quiz of the Day - ")
+st.write("Test your knowledge of college football teams and their stadiums!")
+level = st.radio("Choose a difficulty level:", ("Easy", "Medium", "Hard"))
+quiz()
+
+confs = []
+for i in list(df_stadiums["conference"]):
+    if i not in confs:
+        confs.append(i)
+confs.sort()
+
+df_stadiums = df_stadiums.sort_values(['capacity'], ascending=False)
+
+st.sidebar.title("A Closer Look")
+st.sidebar.write("Explore stadiums and teams by states, conferences, and more!")
+
+sel_conf = str(st.sidebar.selectbox("Select a conference: ", confs))
+st.sidebar.write("Schools are sorted by stadium capacity, largest to smallest.")
+st.sidebar.write("--------------------")
+
+def conf_select():
+    for i in range(len(df_stadiums)):
+        if str(df_stadiums.at[i, "conference"]) == sel_conf:
+            st.sidebar.subheader(f"{df_stadiums.at[i, 'team']}:")
+            st.sidebar.write(f"{df_stadiums.at[i, 'stadium']} ({df_stadiums.at[i, 'capacity']} people)")
+            st.sidebar.write(f"{df_stadiums.at[i, 'city']}, {df_stadiums.at[i, 'state']}")
+            st.sidebar.write(f"{df_stadiums.at[i, 'div'].upper()}")
+            st.sidebar.write("--------------------")
+
+conf_select()
+
+df_loc = []
+for i in range(len(df_stadiums)):
+    if str(df_stadiums.at[i, "conference"]) == sel_conf:
+        df_loc_list = []
+        df_loc_list.append(df_stadiums.at[i, 'team'])
+        df_loc_list.append(df_stadiums.at[i, 'stadium'])
+        df_loc_list.append(df_stadiums.at[i, 'latitude'])
+        df_loc_list.append(df_stadiums.at[i, 'longitude'])
+        df_loc.append(df_loc_list)
+loc_df = pd.DataFrame(df_loc, columns=["team", "stadium", "latitude", "longitude"])
+st.subheader("Where are all the conferences?")
+st.write("Select a conference in the sidebar and view where all of its stadiums are located.")
+st.write(f"You are currently viewing the {sel_conf} conference, which has {len(loc_df)} teams.")
+st.write("Take a closer look at the teams in this conference by scrolling down the sidebar.")
+st.map(loc_df)
+
+st.subheader("When were stadiums built?")
+with st.expander("See what decades had the most stadiums constructed in them!"):
+    years = list(df_stadiums["built"])
+    years.sort()
+    fig2, ax2 = plt.subplots()
+    ax2.hist(years, bins=[1890,1900,1910,1920,1930,1940,1950,1960,1970,1980,1990,2000,2010,2020,2030], color="g")
+    ax2.set_xlim([1890,2030])
+    ax2.set_ylim([0,60])
+    st.pyplot(fig2)
+    st.write("It looks like the most were built in the 1920's and 1960's.")
+    min = years[0]
+    st.write(f"The oldest stadium was built in {min}.")
+
+st.subheader("Average Stadium Capacities By Conference")
+with st.expander("Listed below are all of the conferences and the average capacity of their stadiums."):
+    df_sub = df_stadiums[["conference", "capacity"]]
+    mean_cap = df_sub.groupby(by = "conference").mean().astype(int)
+    st.table(mean_cap.sort_values(['capacity'], ascending=False))
+
+st.subheader("Division Breakdown")
+with st.expander("How balanced are the number of teams in each division?"):
+    div_count = df_stadiums.groupby(by = "div").count()
+    print(div_count)
+    divs = ["FBS", "FCS"]
+    div_teams = [128, 125]
+    fig1, ax1 = plt.subplots()
+    ax1.pie(div_teams, labels=divs, autopct='%.1f%%')
+    ax1.axis('equal')
+    st.pyplot(fig1)
